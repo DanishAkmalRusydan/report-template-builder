@@ -1,0 +1,2 @@
+export const RUBRIC_PLACEHOLDER = '[[RUBRIC_CONTENT]]';
+export const TOC_TITLE = 'TABLE OF CONTENTS';

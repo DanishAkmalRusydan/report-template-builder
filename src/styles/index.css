@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens – the single source of colour, radius and shadow for the app.
+ * Values are HSL channels so Tailwind can apply opacity (bg-primary/10 etc).
+ * Direction: clean academic. Deep navy ink on warm paper, one terracotta accent.
+ */
+@layer base {
+  :root {
+    --background: 40 30% 97%;
+    --foreground: 222 52% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 52% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 52% 13%;
+    --primary: 222 58% 19%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 40 22% 92%;
+    --secondary-foreground: 222 52% 15%;
+    --muted: 40 20% 93%;
+    --muted-foreground: 222 12% 40%;
+    --accent: 40 24% 91%;
+    --accent-foreground: 222 52% 13%;
+    --warm: 20 68% 46%;
+    --warm-foreground: 0 0% 100%;
+    --warm-soft: 24 80% 94%;
+    --destructive: 2 64% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 48% 30%;
+    --warning: 34 88% 36%;
+    --warning-soft: 40 92% 92%;
+    --info: 214 58% 40%;
+    --info-soft: 214 70% 95%;
+    --border: 36 16% 86%;
+    --input: 36 14% 82%;
+    --ring: 20 68% 46%;
+    --radius: 0.625rem;
+    --shadow: 222 40% 20%;
+    /* The paper in the preview stays white in both themes, like the real document. */
+    --paper: 0 0% 100%;
+    --paper-ink: 222 30% 12%;
+    --paper-rule: 222 10% 82%;
+  }
+
+  .dark {
+    --background: 222 38% 7%;
+    --foreground: 38 22% 91%;
+    --card: 222 32% 10%;
+    --card-foreground: 38 22% 91%;
+    --popover: 222 32% 11%;
+    --popover-foreground: 38 22% 91%;
+    --primary: 38 30% 90%;
+    --primary-foreground: 222 52% 12%;
+    --secondary: 222 24% 16%;
+    --secondary-foreground: 38 22% 91%;
+    --muted: 222 24% 14%;
+    --muted-foreground: 220 12% 64%;
+    --accent: 222 24% 17%;
+    --accent-foreground: 38 22% 91%;
+    --warm: 22 78% 60%;
+    --warm-foreground: 222 52% 10%;
+    --warm-soft: 22 40% 16%;
+    --destructive: 2 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 45% 52%;
+    --warning: 38 90% 60%;
+    --warning-soft: 38 40% 15%;
+    --info: 214 75% 70%;
+    --info-soft: 214 40% 16%;
+    --border: 222 20% 19%;
+    --input: 222 20% 24%;
+    --ring: 22 78% 60%;
+    --shadow: 222 60% 2%;
+    --paper: 40 20% 97%;
+    --paper-ink: 222 30% 12%;
+    --paper-rule: 222 10% 80%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  ::selection {
+    background: hsl(var(--warm) / 0.25);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

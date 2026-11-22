@@ -1,0 +1,27 @@
+# Dependencies and build output
+node_modules
+dist
+coverage
+*.tsbuildinfo
+
+# Private files – real assignment briefs, rubrics and generated templates must never be committed.
+fixtures
+out
+
+# Test artefacts
+playwright-report
+test-results
+blob-report
+
+# Local settings
+*.local
+.env.local
+.env.*.local
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea
