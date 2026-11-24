@@ -24,7 +24,10 @@ test('edits in the wizard show up in the downloaded file', async ({ page, baseUR
   await handle.focus();
   await page.keyboard.press('ArrowUp');
   await expect(page.getByRole('button', { name: /^Move "Task A2: Business Rules", position 2 of/ })).toBeFocused();
-  const order = await page.getByRole('list', { name: 'Report headings' }).getByRole('textbox').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+  const order = await page
+    .getByRole('list', { name: 'Report headings' })
+    .getByRole('textbox')
+    .evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
   expect(order.slice(0, 3)).toEqual(['PART A: Requirements and Scope', 'Task A2: Business Rules', 'Task A1: Stakeholders and Use Cases']);
 
   // Live preview updates instantly.

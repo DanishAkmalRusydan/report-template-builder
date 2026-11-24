@@ -30,17 +30,41 @@ export function useIssues(): { issues: Issue[]; pages: number; maxPages?: number
     };
     const issues = detectIssues(input);
     if (config.rubric.kind === 'docx' && !rubricBytes) {
-      issues.unshift({ id: 'rubric-missing', severity: 'warning', message: 'The rubric file is no longer loaded (files are not kept after a reload).', fix: 'Add the rubric again in step 1, or the template will say “Attach the rubric here.”' });
+      issues.unshift({
+        id: 'rubric-missing',
+        severity: 'warning',
+        message: 'The rubric file is no longer loaded (files are not kept after a reload).',
+        fix: 'Add the rubric again in step 1, or the template will say “Attach the rubric here.”',
+      });
     }
-    const empty = (['subjectCode', 'assignmentName', 'lecturer'] as const).filter((k) => !config.cover[k].trim());
+    if (config.rubric.kind === 'none') {
+      issues.unshift({
+        id: 'rubric-none',
+        severity: 'warning',
+        message: 'There is no rubric: none was found in the brief and no rubric file was added.',
+        fix: 'Add the rubric (.docx or .pdf) in step 1 so it goes on the last pages.',
+      });
+    }
+    // A copied cover sheet already has its own fields and member table.
+    const copied = config.cover.mode === 'from-brief' && !!config.cover.briefLayout?.blocks.length;
+    const empty = copied ? [] : (['subjectCode', 'assignmentName', 'lecturer'] as const).filter((k) => !config.cover[k].trim());
     if (empty.length) {
       const names = { subjectCode: 'subject code', assignmentName: 'assignment', lecturer: 'lecturer' };
-      issues.push({ id: 'cover-empty', severity: 'info', message: `The cover has no ${empty.map((k) => names[k]).join(', ')}.`, fix: 'Fill it in under Format & cover, or leave it to type in Word.' });
+      issues.push({
+        id: 'cover-empty',
+        severity: 'info',
+        message: `The cover has no ${empty.map((k) => names[k]).join(', ')}.`,
+        fix: 'Fill it in under Format & cover, or leave it to type in Word.',
+      });
     }
     // The member table should fit the group size.
     const g = brief?.cover.groupSize;
-    if (g && config.cover.memberRows < g.max) {
-      issues.push({ id: 'rows-short', severity: 'info', message: `The brief allows groups of up to ${g.max}, but the cover has ${config.cover.memberRows} member rows.` });
+    if (g && !copied && config.cover.memberRows < g.max) {
+      issues.push({
+        id: 'rows-short',
+        severity: 'info',
+        message: `The brief allows groups of up to ${g.max}, but the cover has ${config.cover.memberRows} member rows.`,
+      });
     }
     issues.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'warning' ? -1 : 1));
     return { issues, pages: estimatePages(input), ...(brief?.format.maxPages ? { maxPages: brief.format.maxPages.value } : {}) };
@@ -51,7 +75,11 @@ function IssueRow({ issue }: { issue: Issue }) {
   const warn = issue.severity === 'warning';
   return (
     <li className={cn('flex gap-3 rounded-md border p-3', warn ? 'border-warning/40 bg-warning-soft/60' : 'bg-card')}>
-      {warn ? <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden /> : <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />}
+      {warn ? (
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+      ) : (
+        <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+      )}
       <div className="min-w-0 flex-1 text-sm">
         <div className="flex items-start gap-2">
           <p className="flex-1">{issue.message}</p>
@@ -87,7 +115,12 @@ export function ReviewStep() {
       const blob = await gen.buildTemplate(cfg, rubricBytes);
       const name = gen.templateFileName(cfg);
       downloadBlob(blob, name);
-      addHistory({ fileName: name, briefName: briefFile?.name ?? 'Brief', ...(rubricFile ? { rubricName: rubricFile.name } : {}), config: cfg });
+      addHistory({
+        fileName: name,
+        briefName: briefFile?.name ?? 'Brief',
+        ...(rubricFile ? { rubricName: rubricFile.name } : {}),
+        config: cfg,
+      });
       setDone(name);
       toast.success(`Downloaded ${name}`);
     } catch (e) {
@@ -103,7 +136,11 @@ export function ReviewStep() {
       <div className="space-y-5">
         <Section
           title="Issues"
-          description={issues.length ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}, ${issues.length - warnings.length} note${issues.length - warnings.length === 1 ? '' : 's'}` : undefined}
+          description={
+            issues.length
+              ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}, ${issues.length - warnings.length} note${issues.length - warnings.length === 1 ? '' : 's'}`
+              : undefined
+          }
         >
           {issues.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-success">
@@ -148,13 +185,15 @@ export function ReviewStep() {
           </div>
           {done && (
             <p className="mt-4 flex items-center gap-2 text-sm text-success" role="status">
-              <CheckCircle2 className="size-4" aria-hidden /> Saved {done}. Word may ask to update fields when you open it – choose Yes to fill the table of contents.
+              <CheckCircle2 className="size-4" aria-hidden /> Saved {done}. Word may ask to update fields when you open it – choose Yes to
+              fill the table of contents.
             </p>
           )}
           <p className="mt-4 flex gap-2 border-t pt-4 text-sm text-muted-foreground">
             <ExternalLink className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
-              Need Google Docs? Upload this file to Google Drive and open it with Google Docs. Then use Insert → Table of contents to refresh the contents page.
+              Need Google Docs? Upload this file to Google Drive and open it with Google Docs. Then use Insert → Table of contents to
+              refresh the contents page.
             </span>
           </p>
         </motion.div>

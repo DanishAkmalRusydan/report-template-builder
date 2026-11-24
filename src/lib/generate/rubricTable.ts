@@ -21,7 +21,10 @@ export function rubricContent(layout: { before?: string[]; rows?: string[][]; af
 /** Rebuild a rubric (rows of cell text, first row = header) as a Word table. */
 export function rubricTable(rows: string[][], width: number): (Paragraph | Table)[] {
   if (rows.length === 0) {
-    return [new Paragraph({ children: [new TextRun({ text: 'Rubric', bold: true })] }), new Paragraph({ children: [new TextRun('Paste the rubric here.')] })];
+    return [
+      new Paragraph({ children: [new TextRun({ text: 'Rubric', bold: true })] }),
+      new Paragraph({ children: [new TextRun('Paste the rubric here.')] }),
+    ];
   }
   const nCols = Math.max(...rows.map((r) => r.length));
   // First two columns (component, criteria) slightly wider than the level descriptors.

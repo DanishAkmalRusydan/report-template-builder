@@ -17,6 +17,10 @@ const COVER_LABELS = [
   /\bname\b/i,
   /total\b|marks/i,
   /programme|program\b/i,
+  /declaration|plagiarism/i,
+  /signature/i,
+  /\bfor\s+(lecturer|examiner|office|official|marker)[’']?s?\s+use\b/i,
+  /\bgroup members?\b/i,
 ];
 
 function coverScore(lines: BriefLine[]): number {
@@ -34,7 +38,9 @@ function findCoverPages(lines: BriefLine[], pageSizes: PageSize[], excludePages:
     const pl = lines.filter((l) => l.page === p.page && !l.repeated);
     if (pl.length === 0 || pl.length > 40) continue;
     const prose = pl.filter((l) => l.text.split(/\s+/).length > 14).length;
-    const explicit = pl.some((l) => /cover sheet|this cover|attach it to your assignment/i.test(l.text));
+    const explicit = pl.some((l) =>
+      /cover (sheet|page)|this cover|front (page|sheet)|attach (it|this) to (your|the) (assignment|report)/i.test(l.text),
+    );
     if ((coverScore(pl) >= 6 && prose <= 3) || (explicit && coverScore(pl) >= 4)) pages.push(p.page);
   }
   return pages;
@@ -42,7 +48,9 @@ function findCoverPages(lines: BriefLine[], pageSizes: PageSize[], excludePages:
 
 function groupTypeOf(lines: BriefLine[]): { type: Sourced<GroupType>; size?: { min: number; max: number } } {
   for (const l of lines) {
-    const m = l.text.match(/group(?:s)?\s+of\s+(\d+)\s*(?:–|-|to|—)\s*(\d+)/i) ?? l.text.match(/(\d+)\s*(?:–|-|to)\s*(\d+)\s+(?:students|members)\s+per\s+group/i);
+    const m =
+      l.text.match(/group(?:s)?\s+of\s+(\d+)\s*(?:–|-|to|—)\s*(\d+)/i) ??
+      l.text.match(/(\d+)\s*(?:–|-|to)\s*(\d+)\s+(?:students|members)\s+per\s+group/i);
     if (m) return { type: sourced<GroupType>('group', l), size: { min: Number(m[1]), max: Number(m[2]) } };
     const single = l.text.match(/group\s+of\s+(\d+)\b/i);
     if (single) {
@@ -50,7 +58,9 @@ function groupTypeOf(lines: BriefLine[]): { type: Sourced<GroupType>; size?: { m
       return { type: sourced<GroupType>('group', l), size: { min: n, max: n } };
     }
   }
-  const individual = lines.find((l) => /\b(an?\s+)?individual\s+(assignment|work|project|task|submission)\b|\bindividually\b/i.test(l.text));
+  const individual = lines.find((l) =>
+    /\b(an?\s+)?individual\s+(assignment|work|project|task|submission)\b|\bindividually\b/i.test(l.text),
+  );
   if (individual) return { type: sourced<GroupType>('individual', individual) };
   const group = lines.find((l) => /\bgroup\s+(assignment|project|work|members?)\b|\bin groups\b/i.test(l.text));
   if (group) return { type: sourced<GroupType>('group', group) };
@@ -59,11 +69,7 @@ function groupTypeOf(lines: BriefLine[]): { type: Sourced<GroupType>; size?: { m
 
 const stripTrailingDot = (s: string) => s.replace(/\.\s*$/, '').trim();
 
-export function detectCover(
-  lines: BriefLine[],
-  pageSizes: PageSize[] = [],
-  opts: { excludePages?: number[] } = {},
-): DetectedCover {
+export function detectCover(lines: BriefLine[], pageSizes: PageSize[] = [], opts: { excludePages?: number[] } = {}): DetectedCover {
   const exclude = new Set(opts.excludePages ?? []);
   const coverPages = findCoverPages(lines, pageSizes, exclude);
   const coverSet = new Set(coverPages);
@@ -102,13 +108,22 @@ export function detectCover(
 
   // Assignment name: an early "Assignment 2: …" / "ASSIGNMENT (Lab 2)" / "Lab Report 1" line.
   const early = body.filter((l) => !l.repeated).slice(0, 20);
-  const nameLine = early.find((l) => /^(assignment|lab(oratory)?|project|coursework|case study|mini project|individual assignment|group assignment)\b/i.test(l.text) && l.text.split(/\s+/).length <= 12 && !/^assignment title/i.test(l.text) && !/^assignment\s*\(\d+\s*%\)$/i.test(l.text));
+  const nameLine = early.find(
+    (l) =>
+      /^(assignment|lab(oratory)?|project|coursework|case study|mini project|individual assignment|group assignment)\b/i.test(l.text) &&
+      l.text.split(/\s+/).length <= 12 &&
+      !/^assignment title/i.test(l.text) &&
+      !/^assignment\s*\(\d+\s*%\)$/i.test(l.text),
+  );
   if (nameLine) result.assignmentName = sourced(stripTrailingDot(nameLine.text), nameLine);
 
   // Assignment title: "Assignment Title: …", "Project Title: …", "Title: …", or the line after a "TITLE" heading.
   const titleLine = body.find((l) => /^(assignment|project|report)?\s*title\s*:\s*\S/i.test(l.text));
   if (titleLine) {
-    result.assignmentTitle = sourced(stripTrailingDot(titleLine.text.replace(/^(assignment|project|report)?\s*title\s*:\s*/i, '')), titleLine);
+    result.assignmentTitle = sourced(
+      stripTrailingDot(titleLine.text.replace(/^(assignment|project|report)?\s*title\s*:\s*/i, '')),
+      titleLine,
+    );
   } else {
     const idx = body.findIndex((l) => /^title$/i.test(l.text));
     const next = idx >= 0 ? body[idx + 1] : undefined;
@@ -132,7 +147,11 @@ export function detectCover(
     }
   }
   for (const l of ordered) {
-    const m = l.text.match(/^semester\s*:?\s*(.{3,})$/i) ?? l.text.match(/\b((?:jan(?:uary)?|feb|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov|dec)\s+20\d{2})\s+semester\b/i);
+    const m =
+      l.text.match(/^semester\s*:?\s*(.{3,})$/i) ??
+      l.text.match(
+        /\b((?:jan(?:uary)?|feb|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov|dec)\s+20\d{2})\s+semester\b/i,
+      );
     if (m?.[1]) {
       result.semester = sourced(m[1].trim(), l);
       break;

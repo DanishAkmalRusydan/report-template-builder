@@ -118,7 +118,7 @@ export async function checkPdf(pdf: string, pdftotext: string, config: TemplateC
   const cover = pages[0] ?? '';
   checks.push({
     name: 'page 1 is the cover',
-    ok: has(cover, 'Student ID') && (!config.cover.subjectCode || has(cover, config.cover.subjectCode)),
+    ok: has(cover, 'Student ID') && (!config.cover.subjectCode || has(cover.replace(/\s+/g, ''), config.cover.subjectCode.replace(/\s+/g, ''))),
     detail: firstLine(cover),
   });
   checks.push({ name: 'page 2 is the TOC', ok: firstLine(pages[1] ?? '') === norm(TOC_TITLE), detail: firstLine(pages[1] ?? '') });

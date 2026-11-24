@@ -26,8 +26,14 @@ for (const c of cases) {
     await uploadBrief(page, c.brief);
     await expectBriefLoaded(page);
     if (c.rubric) {
-      await page.getByLabel('Rubric (.docx)').setInputFiles(c.rubric);
+      await page.getByLabel('Rubric file (.docx or .pdf)').setInputFiles(c.rubric);
       await expect(page.getByText(/^Rubric added/)).toBeVisible();
+    }
+
+    const lab2 = basename(c.brief) === 'CAI20103_Lab2.pdf';
+    if (lab2) {
+      // The rubric inside the brief is used.
+      await expect(page.getByTestId('rubric-status')).toContainText('The brief has a rubric (pages 8–9)');
     }
 
     // Steps 2–4.
@@ -36,6 +42,12 @@ for (const c of cases) {
     await expect(page.getByRole('list', { name: 'Report headings' }).getByRole('listitem').first()).toBeVisible();
     await next(page, 'Next: format & cover');
     await expect(page.getByRole('heading', { name: 'Format & cover' })).toBeVisible();
+    if (lab2) {
+      // The brief's own cover sheet (page 10) is copied instead of generating one.
+      await expect(page.getByTestId('exact-cover-note')).toBeVisible();
+      await expect(page.getByText(/own cover sheet \(page 10\)/)).toBeVisible();
+      await expect(page.getByTestId('copied-cover').getByText('Instructions to students:')).toBeVisible();
+    }
     await next(page, 'Next: review');
     await expect(page.getByRole('heading', { name: 'Review & download' })).toBeVisible();
 

@@ -6,6 +6,7 @@
  * when the horizontal gap between fragments is wider than a fraction of the font size.
  */
 import type { PageSize } from '../types';
+import { imageDataUrl, readGraphics, type ImagePlacement, type PageGraphics } from './pdfGraphics';
 
 export interface PdfFragment {
   str: string;
@@ -30,6 +31,8 @@ export interface PdfPage {
   height: number;
   landscape: boolean;
   lines: PdfLine[];
+  /** Table borders, rules and image placements (no image pixels). */
+  graphics?: PageGraphics;
 }
 
 export interface PdfExtract {
@@ -41,9 +44,17 @@ export interface PdfExtract {
 
 /** Minimal slice of the pdfjs API we use, so Node tests can pass the legacy build. */
 export interface PdfjsLike {
-  getDocument(src: { data: Uint8Array; isEvalSupported?: boolean; useSystemFonts?: boolean; verbosity?: number }): {
+  getDocument(src: {
+    data: Uint8Array;
+    isEvalSupported?: boolean;
+    useSystemFonts?: boolean;
+    verbosity?: number;
+    isOffscreenCanvasSupported?: boolean;
+    isImageDecoderSupported?: boolean;
+  }): {
     promise: Promise<PdfDocLike>;
   };
+  OPS?: Record<string, number>;
 }
 interface PdfDocLike {
   numPages: number;
@@ -53,8 +64,9 @@ interface PdfDocLike {
 interface PdfPageLike {
   getViewport(o: { scale: number }): { width: number; height: number };
   getTextContent(): Promise<{ items: unknown[] }>;
-  getOperatorList(): Promise<unknown>;
+  getOperatorList(): Promise<{ fnArray: ArrayLike<number>; argsArray: ArrayLike<unknown> }>;
   commonObjs: { has(id: string): boolean; get(id: string): { name?: string } | undefined };
+  objs: { has(id: string): boolean; get(id: string): unknown };
 }
 interface RawItem {
   str: string;
@@ -129,7 +141,13 @@ export async function extractPdf(data: ArrayBuffer | Uint8Array, pdfjs?: PdfjsLi
       const page = await doc.getPage(n);
       const vp = page.getViewport({ scale: 1 });
       // The operator list loads font objects so we can read real font names (bold detection).
-      await page.getOperatorList();
+      const ol = await page.getOperatorList();
+      let graphics: PageGraphics | undefined;
+      try {
+        graphics = readGraphics(ol, lib.OPS);
+      } catch {
+        graphics = undefined;
+      }
       const tc = await page.getTextContent();
       const fontCache = new Map<string, boolean>();
       const isBoldFont = (id: string): boolean => {
@@ -156,7 +174,7 @@ export async function extractPdf(data: ArrayBuffer | Uint8Array, pdfjs?: PdfjsLi
       }
       const width = Math.round(vp.width);
       const height = Math.round(vp.height);
-      pages.push({ page: n, width, height, landscape: width > height, lines: groupLines(frags) });
+      pages.push({ page: n, width, height, landscape: width > height, lines: groupLines(frags), ...(graphics ? { graphics } : {}) });
     }
   } finally {
     await doc.destroy();
@@ -166,4 +184,41 @@ export async function extractPdf(data: ArrayBuffer | Uint8Array, pdfjs?: PdfjsLi
     pageSizes: pages.map(({ page, width, height, landscape }) => ({ page, width, height, landscape })),
     noTextLayer: totalChars < 20,
   };
+}
+
+/** Image pixels (PNG data URLs) for the given pages, keyed by page then image id. */
+export async function extractPageImages(
+  data: ArrayBuffer | Uint8Array,
+  wanted: Map<number, ImagePlacement[]>,
+  pdfjs?: PdfjsLike,
+): Promise<Map<number, Map<string, string>>> {
+  const out = new Map<number, Map<string, string>>();
+  if (wanted.size === 0) return out;
+  const lib = pdfjs ?? (await loadDefaultPdfjs());
+  const bytes = new Uint8Array(data instanceof Uint8Array ? data : new Uint8Array(data)).slice();
+  // Raw pixel data (not ImageBitmaps), so images can be encoded without a canvas.
+  const doc = await lib.getDocument({
+    data: bytes,
+    isEvalSupported: false,
+    verbosity: 0,
+    isOffscreenCanvasSupported: false,
+    isImageDecoderSupported: false,
+  }).promise;
+  try {
+    for (const [n, imgs] of wanted) {
+      const page = await doc.getPage(n);
+      const ol = await page.getOperatorList();
+      const placed = readGraphics(ol, lib.OPS).images;
+      const urls = new Map<string, string>();
+      for (const img of imgs) {
+        const match = placed.find((p) => p.id === img.id) ?? img;
+        const url = await imageDataUrl(match, page.objs, page.commonObjs);
+        if (url) urls.set(img.id, url);
+      }
+      out.set(n, urls);
+    }
+  } finally {
+    await doc.destroy();
+  }
+  return out;
 }

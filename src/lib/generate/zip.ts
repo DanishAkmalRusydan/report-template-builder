@@ -11,7 +11,12 @@ export async function repackZip(files: Map<string, Uint8Array | string>): Promis
     if (name.endsWith('/')) continue;
     out.file(name, files.get(name)!, { createFolders: false, binary: typeof files.get(name) !== 'string' });
   }
-  return out.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 }, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  return out.generateAsync({
+    type: 'uint8array',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
 }
 
 /** Load every file (not folder) of a zip into memory. Text parts are decoded as strings. */

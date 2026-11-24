@@ -8,10 +8,7 @@ let cached: Promise<PdfjsLike> | null = null;
 
 export function getPdfjs(): Promise<PdfjsLike> {
   cached ??= (async () => {
-    const [lib, worker] = await Promise.all([
-      import('pdfjs-dist'),
-      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-    ]);
+    const [lib, worker] = await Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]);
     lib.GlobalWorkerOptions.workerSrc = worker.default;
     return lib as unknown as PdfjsLike;
   })();

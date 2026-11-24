@@ -112,6 +112,50 @@ export interface DetectedCover {
   coverPages?: number[];
   /** Label/value fields read from the brief's cover sheet. */
   coverFields: CoverField[];
+  /** The brief's cover sheet page, copied as positioned text, lines, tables and images (PDF only). */
+  layout?: CoverLayout;
+}
+
+/** A run of text on a copied cover line. `tab` = a tab comes before it (e.g. "Name<tab>: value"). */
+export interface CoverRun {
+  text: string;
+  bold: boolean;
+  tab?: boolean;
+}
+
+export interface CoverTextLine {
+  runs: CoverRun[];
+  size: number;
+  align: 'left' | 'center' | 'right';
+  /** Left indent from the block's left edge, in points (left-aligned lines). */
+  indent: number;
+  /** Tab stop positions from the block's left edge, in points. */
+  tabs: number[];
+}
+
+export interface CoverTableCell {
+  col: number;
+  colSpan: number;
+  rowSpan: number;
+  lines: CoverTextLine[];
+}
+
+/** One element of a copied cover page. Positions are PDF points from the page's top-left. */
+export type CoverBlock =
+  | ({ kind: 'text'; top: number; bottom: number } & CoverTextLine)
+  | { kind: 'rule'; top: number; bottom: number; x: number; width: number; thickness: number }
+  | { kind: 'image'; top: number; bottom: number; x: number; width: number; dataUrl: string; align: 'left' | 'center' | 'right' }
+  | { kind: 'table'; top: number; bottom: number; x: number; colWidths: number[]; rows: { height: number; cells: CoverTableCell[] }[] };
+
+export interface CoverLayout {
+  /** 1-based page of the brief it was copied from. */
+  page: number;
+  pageWidth: number;
+  pageHeight: number;
+  /** Left and right edges of the content, in points. */
+  left: number;
+  right: number;
+  blocks: CoverBlock[];
 }
 
 export interface CoverPage {
@@ -128,6 +172,8 @@ export interface CoverPage {
   memberRows: number;
   showPictureColumn: boolean;
   briefFields: CoverField[];
+  /** Exact copy of the brief's cover sheet; used instead of the fields when mode is 'from-brief'. */
+  briefLayout?: CoverLayout;
 }
 
 /** A rubric rebuilt from PDF text: title lines, table rows (header rows first), trailing lines. */

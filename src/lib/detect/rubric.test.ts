@@ -4,7 +4,12 @@ import { lines } from '../../test/lines';
 import { A2, LAB2, hasFixture, pdfjs, readFixture } from '../../test/fixtures';
 import type { PageSize } from '../types';
 
-const size = (page: number, landscape = false): PageSize => ({ page, width: landscape ? 842 : 595, height: landscape ? 595 : 842, landscape });
+const size = (page: number, landscape = false): PageSize => ({
+  page,
+  width: landscape ? 842 : 595,
+  height: landscape ? 595 : 842,
+  landscape,
+});
 
 describe('detectRubric (rules)', () => {
   it('does not count "refer to the attached rubrics" instructions', () => {
@@ -40,5 +45,15 @@ describe.runIf(hasFixture(A2))('detectRubric (A2.docx)', () => {
   it('has no rubric inside the brief', async () => {
     const { rubric } = await parseBrief(A2, readFixture(A2));
     expect(rubric.found).toBe(false);
+  });
+});
+
+describe.runIf(hasFixture(LAB2))('parseRubricPdf', () => {
+  it('finds the rubric pages in a PDF and rebuilds the table', async () => {
+    const { parseRubricPdf } = await import('../parse');
+    const r = await parseRubricPdf(readFixture(LAB2), { pdfjs });
+    expect(r.pages).toEqual([8, 9]);
+    expect(r.landscape).toBe(true);
+    expect(r.rows.length).toBeGreaterThan(5);
   });
 });

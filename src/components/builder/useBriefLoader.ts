@@ -21,6 +21,7 @@ export function useBriefLoader() {
   const [noText, setNoText] = useState(false);
   const loadBrief = useBuilder((s) => s.loadBrief);
   const setRubric = useBuilder((s) => s.setRubric);
+  const setRubricPdf = useBuilder((s) => s.setRubricPdf);
 
   const finish = useCallback(
     (brief: ParsedBrief, meta: { name: string; size: number }) => {
@@ -95,20 +96,46 @@ export function useBriefLoader() {
 
   const loadRubricFile = useCallback(
     async (file: File) => {
-      if (!/\.docx$/i.test(file.name)) {
-        toast.error('Upload the rubric as a .docx file. A rubric inside the brief PDF is picked up automatically.');
+      const isPdf = /\.pdf$/i.test(file.name);
+      if (!isPdf && !/\.docx$/i.test(file.name)) {
+        toast.error('Upload the rubric as a .docx or .pdf file.');
+        return;
+      }
+      if (file.size > MAX_BYTES) {
+        toast.error('This rubric file is larger than 25 MB.');
         return;
       }
       try {
         const bytes = await file.arrayBuffer();
+        if (isPdf) {
+          // Loaded on demand so the parser isn't part of the main bundle.
+          const { parseRubricPdf } = await import('@/lib/parse');
+          const r = await parseRubricPdf(bytes);
+          const sample = r.rows.slice(0, 6);
+          setRubricPdf(
+            {
+              name: file.name,
+              size: file.size,
+              landscape: r.landscape,
+              pages: r.pageCount,
+              ...(r.before[0] ? { title: r.before[0] } : {}),
+              sample,
+            },
+            { kind: 'pdf-pages', pages: r.pages, landscape: r.landscape, before: r.before, rows: r.rows, after: r.after },
+          );
+          toast.success(`Rubric added: a table of ${r.rows.length} rows, rebuilt from the PDF.`);
+          return;
+        }
         const info = await inspectRubricDocx(bytes);
         setRubric({ name: file.name, size: file.size, ...info }, bytes);
-        toast.success(`Rubric added${info.pages ? ` (${info.pages} page${info.pages === 1 ? '' : 's'}, ${info.landscape ? 'landscape' : 'portrait'})` : ''}.`);
+        toast.success(
+          `Rubric added${info.pages ? ` (${info.pages} page${info.pages === 1 ? '' : 's'}, ${info.landscape ? 'landscape' : 'portrait'})` : ''}.`,
+        );
       } catch (e) {
         toast.error((e as Error).message);
       }
     },
-    [setRubric],
+    [setRubric, setRubricPdf],
   );
 
   return { stage, noText, loadBriefFile, loadExample, loadPastedText, loadRubricFile };

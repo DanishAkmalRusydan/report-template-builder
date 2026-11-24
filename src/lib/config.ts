@@ -53,6 +53,7 @@ export function makeConfig(brief: ParsedBrief, o: ConfigOverrides = {}): Templat
       memberRows,
       showPictureColumn: true,
       briefFields: c.coverFields,
+      ...(c.layout ? { briefLayout: c.layout } : {}),
     },
     onePartPerPage: true,
     includeReferences: brief.wantsReferences,

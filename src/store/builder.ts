@@ -14,7 +14,10 @@ export interface FileMeta {
   name: string;
   size: number;
 }
-export interface RubricMeta extends FileMeta, RubricInfo {}
+export interface RubricMeta extends FileMeta, RubricInfo {
+  /** A .docx is merged in unchanged; a .pdf is rebuilt as a table. */
+  format?: 'docx' | 'pdf';
+}
 
 /** Where a click on a preview page should take the user. */
 export type FocusTarget = { kind: 'cover' } | { kind: 'toc' } | { kind: 'heading'; id: string } | { kind: 'rubric' } | { kind: 'format' };
@@ -27,12 +30,15 @@ interface BuilderState {
   rubricFile?: RubricMeta;
   /** Rubric .docx bytes – kept in memory only, never persisted. */
   rubricBytes?: ArrayBuffer;
+  /** A separate rubric PDF, rebuilt as a table. */
+  rubricPdf?: Extract<RubricSource, { kind: 'pdf-pages' }>;
   focus?: { target: FocusTarget; nonce: number };
 
   setStep: (s: Step) => void;
   loadBrief: (brief: ParsedBrief, file: FileMeta, preset: Preset) => void;
   loadConfig: (config: TemplateConfig, briefName: string, rubricName?: string) => void;
   setRubric: (meta: RubricMeta, bytes: ArrayBuffer) => void;
+  setRubricPdf: (meta: RubricMeta, source: Extract<RubricSource, { kind: 'pdf-pages' }>) => void;
   clearRubric: () => void;
   patchFormat: (p: Partial<ResolvedFormat>) => void;
   patchCover: (p: Partial<CoverPage>) => void;
@@ -63,7 +69,8 @@ function presetFormat(brief: ParsedBrief, base: ResolvedFormat, preset: Preset):
   };
 }
 
-function rubricSourceFor(s: Pick<BuilderState, 'brief' | 'rubricFile'>): RubricSource {
+function rubricSourceFor(s: Pick<BuilderState, 'brief' | 'rubricFile' | 'rubricPdf'>): RubricSource {
+  if (s.rubricFile?.format === 'pdf' && s.rubricPdf) return s.rubricPdf;
   if (s.rubricFile) return { kind: 'docx', fileName: s.rubricFile.name };
   const r = s.brief?.rubric;
   if (r?.found && (r.pages.length || r.layout)) return { kind: 'pdf-pages', pages: r.pages, landscape: r.landscape, ...(r.layout ?? {}) };
@@ -72,7 +79,8 @@ function rubricSourceFor(s: Pick<BuilderState, 'brief' | 'rubricFile'>): RubricS
 
 const REFS = /^(references?|bibliography|reference list)$/i;
 
-const withConfig =(s: BuilderState, fn: (c: TemplateConfig) => TemplateConfig): Partial<BuilderState> => (s.config ? { config: fn(s.config) } : {});
+const withConfig = (s: BuilderState, fn: (c: TemplateConfig) => TemplateConfig): Partial<BuilderState> =>
+  s.config ? { config: fn(s.config) } : {};
 
 export const useBuilder = create<BuilderState>()(
   persist(
@@ -91,22 +99,44 @@ export const useBuilder = create<BuilderState>()(
             showPictureColumn: preset.cover.showPictureColumn,
             memberRows: hasGroup ? c.cover.memberRows : preset.cover.memberRows,
           },
-          rubric: rubricSourceFor({ brief, rubricFile: get().rubricFile }),
+          rubric: rubricSourceFor({ brief, rubricFile: get().rubricFile, rubricPdf: get().rubricPdf }),
           ...(preset.builtIn ? {} : { presetId: preset.id }),
         };
         set({ brief, briefFile: file, config });
       },
 
       loadConfig: (config, briefName) =>
-        set({ config, brief: undefined, briefFile: { name: briefName, size: 0 }, rubricFile: undefined, rubricBytes: undefined, step: 3 }),
+        set({
+          config,
+          brief: undefined,
+          briefFile: { name: briefName, size: 0 },
+          rubricFile: undefined,
+          rubricBytes: undefined,
+          rubricPdf: undefined,
+          step: 3,
+        }),
 
       setRubric: (meta, bytes) =>
-        set((s) => ({ rubricFile: meta, rubricBytes: bytes, ...withConfig(s, (c) => ({ ...c, rubric: { kind: 'docx', fileName: meta.name } })) })),
+        set((s) => ({
+          rubricFile: { ...meta, format: 'docx' },
+          rubricBytes: bytes,
+          rubricPdf: undefined,
+          ...withConfig(s, (c) => ({ ...c, rubric: { kind: 'docx', fileName: meta.name } })),
+        })),
+
+      setRubricPdf: (meta, source) =>
+        set((s) => ({
+          rubricFile: { ...meta, format: 'pdf' },
+          rubricBytes: undefined,
+          rubricPdf: source,
+          ...withConfig(s, (c) => ({ ...c, rubric: source })),
+        })),
 
       clearRubric: () =>
         set((s) => ({
           rubricFile: undefined,
           rubricBytes: undefined,
+          rubricPdf: undefined,
           ...withConfig(s, (c) => ({ ...c, rubric: rubricSourceFor({ brief: s.brief, rubricFile: undefined }) })),
         })),
 
@@ -139,7 +169,8 @@ export const useBuilder = create<BuilderState>()(
           })),
         ),
 
-      updateHeading: (id, p) => set((s) => withConfig(s, (c) => ({ ...c, headings: c.headings.map((h) => (h.id === id ? { ...h, ...p } : h)) }))),
+      updateHeading: (id, p) =>
+        set((s) => withConfig(s, (c) => ({ ...c, headings: c.headings.map((h) => (h.id === id ? { ...h, ...p } : h)) }))),
       moveHeading: (from, to) => set((s) => withConfig(s, (c) => ({ ...c, headings: arrayMove(c.headings, from, to) }))),
       indent: (id) =>
         set((s) =>
@@ -150,7 +181,8 @@ export const useBuilder = create<BuilderState>()(
             return { ...c, headings: c.headings.map((h) => (h.id === id ? { ...h, level: 2 as const } : h)) };
           }),
         ),
-      outdent: (id) => set((s) => withConfig(s, (c) => ({ ...c, headings: c.headings.map((h) => (h.id === id ? { ...h, level: 1 as const } : h)) }))),
+      outdent: (id) =>
+        set((s) => withConfig(s, (c) => ({ ...c, headings: c.headings.map((h) => (h.id === id ? { ...h, level: 1 as const } : h)) }))),
       addHeading: (level, afterId) => {
         const id = makeId('h');
         set((s) =>
@@ -179,7 +211,17 @@ export const useBuilder = create<BuilderState>()(
         set({ step, focus: { target, nonce: Date.now() } });
       },
 
-      reset: () => set({ step: 0, brief: undefined, briefFile: undefined, config: undefined, rubricFile: undefined, rubricBytes: undefined, focus: undefined }),
+      reset: () =>
+        set({
+          step: 0,
+          brief: undefined,
+          briefFile: undefined,
+          config: undefined,
+          rubricFile: undefined,
+          rubricBytes: undefined,
+          rubricPdf: undefined,
+          focus: undefined,
+        }),
     }),
     {
       name: 'rtb-builder',

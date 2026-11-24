@@ -31,7 +31,19 @@ const COVER_COLOURS = [
   { name: 'Light grey', hex: 'EDEDED' },
 ];
 
-function Field({ id, label, tag, children, className }: { id: string; label: string; tag?: ReactNode; children: ReactNode; className?: string }) {
+function Field({
+  id,
+  label,
+  tag,
+  children,
+  className,
+}: {
+  id: string;
+  label: string;
+  tag?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn('space-y-1.5', className)}>
       <div className="flex min-h-5 items-center gap-2">
@@ -43,7 +55,21 @@ function Field({ id, label, tag, children, className }: { id: string; label: str
   );
 }
 
-function ToggleRow({ id, label, description, checked, onChange, tag }: { id: string; label: string; description?: string; checked: boolean; onChange: (v: boolean) => void; tag?: ReactNode }) {
+function ToggleRow({
+  id,
+  label,
+  description,
+  checked,
+  onChange,
+  tag,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  tag?: ReactNode;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 py-3">
       <div>
@@ -87,9 +113,17 @@ function SavePresetDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle>Save university profile</DialogTitle>
-        <DialogDescription>Saves the university name, logo, default formatting and cover layout in this browser, so you can pick them next time.</DialogDescription>
+        <DialogDescription>
+          Saves the university name, logo, default formatting and cover layout in this browser, so you can pick them next time.
+        </DialogDescription>
         <Field id="preset-name" label="Profile name">
-          <Input id="preset-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. My University – IT faculty" autoFocus />
+          <Input
+            id="preset-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. My University – IT faculty"
+            autoFocus
+          />
         </Field>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -131,11 +165,16 @@ export function FormatStep() {
   const c = config.cover;
   const bf = brief?.format;
   const bc = brief?.cover;
+  const exactCover = c.mode === 'from-brief' && !!c.briefLayout?.blocks.length;
   const coverWanted = bf?.coverColour;
 
   return (
     <div>
-      <StepHeader step={3} title="Format & cover" description="Values tagged “from brief” were read from the brief. Hover a tag to see the exact line." />
+      <StepHeader
+        step={3}
+        title="Format & cover"
+        description="Values tagged “from brief” were read from the brief. Hover a tag to see the exact line."
+      />
 
       <div className="space-y-5">
         <Section
@@ -194,11 +233,13 @@ export function FormatStep() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[...new Set([f.fontSizePt, ...SIZES])].sort((a, b) => a - b).map((x) => (
-                      <SelectItem key={x} value={String(x)}>
-                        {x} pt
-                      </SelectItem>
-                    ))}
+                    {[...new Set([f.fontSizePt, ...SIZES])]
+                      .sort((a, b) => a - b)
+                      .map((x) => (
+                        <SelectItem key={x} value={String(x)}>
+                          {x} pt
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -208,11 +249,13 @@ export function FormatStep() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[...new Set([f.lineSpacing, ...SPACINGS])].sort((a, b) => a - b).map((x) => (
-                      <SelectItem key={x} value={String(x)}>
-                        {x === 1 ? 'Single (1.0)' : x === 2 ? 'Double (2.0)' : x}
-                      </SelectItem>
-                    ))}
+                    {[...new Set([f.lineSpacing, ...SPACINGS])]
+                      .sort((a, b) => a - b)
+                      .map((x) => (
+                        <SelectItem key={x} value={String(x)}>
+                          {x === 1 ? 'Single (1.0)' : x === 2 ? 'Double (2.0)' : x}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -243,7 +286,13 @@ export function FormatStep() {
               </Field>
             </div>
             <div className="mt-4 divide-y border-t pt-2">
-              <ToggleRow id="justified" label="Justified text" checked={f.justified} onChange={(v) => patchFormat({ justified: v })} tag={tagFor(bf?.justified, f.justified)} />
+              <ToggleRow
+                id="justified"
+                label="Justified text"
+                checked={f.justified}
+                onChange={(v) => patchFormat({ justified: v })}
+                tag={tagFor(bf?.justified, f.justified)}
+              />
               <ToggleRow
                 id="one-part"
                 label="One part per page"
@@ -265,7 +314,15 @@ export function FormatStep() {
         <div ref={coverRef} className="rounded-lg">
           <Section
             title="Cover page"
-            description={bc?.briefHasCover ? 'The brief has its own cover sheet. It is rebuilt from the brief’s fields.' : 'Generated from the details below. The cover has no page number.'}
+            description={
+              exactCover
+                ? `The brief has its own cover sheet (page ${c.briefLayout!.page}). It is copied into the template as it is: logo, fields, instructions and tables.`
+                : bc?.briefHasCover
+                  ? c.mode === 'from-brief'
+                    ? 'The brief has its own cover sheet. It is rebuilt from the brief’s fields.'
+                    : 'A new cover is created from the details below instead of the brief’s cover sheet.'
+                  : 'The brief has no cover page, so one is created from the details below. The cover has no page number.'
+            }
           >
             {bc?.briefHasCover && (
               <div className="mb-4 inline-flex rounded-md border p-0.5" role="radiogroup" aria-label="Cover style">
@@ -275,9 +332,12 @@ export function FormatStep() {
                     role="radio"
                     aria-checked={c.mode === m}
                     onClick={() => patchCover({ mode: m })}
-                    className={cn('rounded px-3 py-1.5 text-sm', c.mode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
+                    className={cn(
+                      'rounded px-3 py-1.5 text-sm',
+                      c.mode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
                   >
-                    {m === 'from-brief' ? 'Brief’s cover sheet' : 'Generated cover'}
+                    {m === 'from-brief' ? 'Use the brief’s cover' : 'Create a new cover'}
                   </button>
                 ))}
               </div>
@@ -285,7 +345,8 @@ export function FormatStep() {
 
             <fieldset className="mb-5">
               <legend className="mb-2 flex items-center gap-2 text-sm font-medium">
-                Cover colour {coverWanted?.source && <FromBrief source={coverWanted.source} matches={f.coverColourHex === coverWanted.value.hex} />}
+                Cover colour{' '}
+                {coverWanted?.source && <FromBrief source={coverWanted.source} matches={f.coverColourHex === coverWanted.value.hex} />}
               </legend>
               <div className="flex flex-wrap items-center gap-2">
                 {COVER_COLOURS.map((col) => {
@@ -298,7 +359,10 @@ export function FormatStep() {
                       aria-label={col.name}
                       aria-pressed={active}
                       title={col.name}
-                      className={cn('relative size-8 rounded-full border-2 transition-transform hover:scale-105', active ? 'border-primary' : 'border-border')}
+                      className={cn(
+                        'relative size-8 rounded-full border-2 transition-transform hover:scale-105',
+                        active ? 'border-primary' : 'border-border',
+                      )}
                       style={{ background: col.hex ? `#${col.hex}` : '#ffffff' }}
                     >
                       {active && <Check className="absolute inset-0 m-auto size-4 text-[#14254a]" aria-hidden />}
@@ -318,108 +382,139 @@ export function FormatStep() {
               </div>
             </fieldset>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="uni" label="University name">
-                <Input id="uni" value={c.universityName} onChange={(e) => patchCover({ universityName: e.target.value })} />
-              </Field>
-              <Field id="logo" label="Logo">
-                <div className="flex items-center gap-3">
-                  {c.logo ? (
-                    <img src={c.logo.dataUrl} alt="University logo" className="h-10 max-w-[120px] rounded border bg-white object-contain p-1" />
-                  ) : (
-                    <span className="flex h-10 w-16 items-center justify-center rounded border border-dashed text-xs text-muted-foreground">none</span>
-                  )}
-                  <Button id="logo" variant="outline" size="sm" onClick={() => logoInput.current?.click()}>
-                    <ImagePlus /> {c.logo ? 'Change' : 'Upload'}
-                  </Button>
-                  {c.logo && (
-                    <Button variant="ghost" size="icon-sm" onClick={() => patchCover({ logo: undefined })} aria-label="Remove logo">
-                      <X />
-                    </Button>
-                  )}
-                  <input
-                    ref={logoInput}
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    className="sr-only"
-                    tabIndex={-1}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = '';
-                      if (!file) return;
-                      try {
-                        patchCover({ logo: await readLogo(file) });
-                      } catch (err) {
-                        toast.error((err as Error).message);
-                      }
-                    }}
-                  />
-                </div>
-              </Field>
-              <Field id="code" label="Subject code" tag={tagFor(bc?.subjectCode, c.subjectCode)}>
-                <Input id="code" value={c.subjectCode} onChange={(e) => patchCover({ subjectCode: e.target.value })} />
-              </Field>
-              <Field id="subject" label="Subject name" tag={tagFor(bc?.subjectName, c.subjectName)}>
-                <Input id="subject" value={c.subjectName} onChange={(e) => patchCover({ subjectName: e.target.value })} />
-              </Field>
-              <Field id="assignment" label="Assignment" tag={tagFor(bc?.assignmentName, c.assignmentName)}>
-                <Input id="assignment" value={c.assignmentName} onChange={(e) => patchCover({ assignmentName: e.target.value })} />
-              </Field>
-              <Field id="lecturer" label="Lecturer" tag={tagFor(bc?.lecturer, c.lecturer)}>
-                <Input id="lecturer" value={c.lecturer} onChange={(e) => patchCover({ lecturer: e.target.value })} placeholder="e.g. Dr. Name" />
-              </Field>
-              <Field id="title" label="Assignment title" tag={tagFor(bc?.assignmentTitle, c.assignmentTitle)} className="sm:col-span-2">
-                <Input id="title" value={c.assignmentTitle} onChange={(e) => patchCover({ assignmentTitle: e.target.value })} />
-              </Field>
-            </div>
-
-            {c.mode === 'from-brief' && c.briefFields.length > 0 && (
-              <div className="mt-5">
-                <p className="mb-2 text-sm font-medium">Fields from the brief’s cover sheet</p>
-                <div className="grid gap-2">
-                  {c.briefFields.map((fld, i) => (
-                    <div key={i} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
-                      <Input
-                        aria-label={`Field ${i + 1} label`}
-                        value={fld.label}
-                        onChange={(e) => patchCover({ briefFields: c.briefFields.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })}
-                      />
-                      <Input
-                        aria-label={`${fld.label} value`}
-                        value={fld.value}
-                        placeholder="(left blank for you to fill)"
-                        onChange={(e) => patchCover({ briefFields: c.briefFields.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })}
+            {exactCover ? (
+              <p className="rounded-md border border-info/30 bg-info/5 px-3 py-2 text-sm" data-testid="exact-cover-note">
+                Nothing to fill in here. Students write their names and IDs straight into the copied cover in Word.
+              </p>
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field id="uni" label="University name">
+                    <Input id="uni" value={c.universityName} onChange={(e) => patchCover({ universityName: e.target.value })} />
+                  </Field>
+                  <Field id="logo" label="Logo">
+                    <div className="flex items-center gap-3">
+                      {c.logo ? (
+                        <img
+                          src={c.logo.dataUrl}
+                          alt="University logo"
+                          className="h-10 max-w-[120px] rounded border bg-white object-contain p-1"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-16 items-center justify-center rounded border border-dashed text-xs text-muted-foreground">
+                          none
+                        </span>
+                      )}
+                      <Button id="logo" variant="outline" size="sm" onClick={() => logoInput.current?.click()}>
+                        <ImagePlus /> {c.logo ? 'Change' : 'Upload'}
+                      </Button>
+                      {c.logo && (
+                        <Button variant="ghost" size="icon-sm" onClick={() => patchCover({ logo: undefined })} aria-label="Remove logo">
+                          <X />
+                        </Button>
+                      )}
+                      <input
+                        ref={logoInput}
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="sr-only"
+                        tabIndex={-1}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          try {
+                            patchCover({ logo: await readLogo(file) });
+                          } catch (err) {
+                            toast.error((err as Error).message);
+                          }
+                        }}
                       />
                     </div>
-                  ))}
+                  </Field>
+                  <Field id="code" label="Subject code" tag={tagFor(bc?.subjectCode, c.subjectCode)}>
+                    <Input id="code" value={c.subjectCode} onChange={(e) => patchCover({ subjectCode: e.target.value })} />
+                  </Field>
+                  <Field id="subject" label="Subject name" tag={tagFor(bc?.subjectName, c.subjectName)}>
+                    <Input id="subject" value={c.subjectName} onChange={(e) => patchCover({ subjectName: e.target.value })} />
+                  </Field>
+                  <Field id="assignment" label="Assignment" tag={tagFor(bc?.assignmentName, c.assignmentName)}>
+                    <Input id="assignment" value={c.assignmentName} onChange={(e) => patchCover({ assignmentName: e.target.value })} />
+                  </Field>
+                  <Field id="lecturer" label="Lecturer" tag={tagFor(bc?.lecturer, c.lecturer)}>
+                    <Input
+                      id="lecturer"
+                      value={c.lecturer}
+                      onChange={(e) => patchCover({ lecturer: e.target.value })}
+                      placeholder="e.g. Dr. Name"
+                    />
+                  </Field>
+                  <Field id="title" label="Assignment title" tag={tagFor(bc?.assignmentTitle, c.assignmentTitle)} className="sm:col-span-2">
+                    <Input id="title" value={c.assignmentTitle} onChange={(e) => patchCover({ assignmentTitle: e.target.value })} />
+                  </Field>
                 </div>
-              </div>
-            )}
 
-            <div className="mt-6 grid gap-5 border-t pt-5 sm:grid-cols-2">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="rows">Group member rows</Label>
-                  <span className="font-mono text-sm tabular-nums" aria-live="polite">
-                    {c.memberRows}
-                  </span>
-                </div>
-                <Slider id="rows" min={1} max={8} step={1} value={[c.memberRows]} onValueChange={([v]) => patchCover({ memberRows: v ?? 1 })} thumbLabel="Group member rows" />
-                {bc?.groupSize && (
-                  <p className="text-xs text-muted-foreground">
-                    The brief says groups of {bc.groupSize.min}
-                    {bc.groupSize.max !== bc.groupSize.min ? `–${bc.groupSize.max}` : ''}.
-                  </p>
+                {c.mode === 'from-brief' && c.briefFields.length > 0 && (
+                  <div className="mt-5">
+                    <p className="mb-2 text-sm font-medium">Fields from the brief’s cover sheet</p>
+                    <div className="grid gap-2">
+                      {c.briefFields.map((fld, i) => (
+                        <div key={i} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
+                          <Input
+                            aria-label={`Field ${i + 1} label`}
+                            value={fld.label}
+                            onChange={(e) =>
+                              patchCover({ briefFields: c.briefFields.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })
+                            }
+                          />
+                          <Input
+                            aria-label={`${fld.label} value`}
+                            value={fld.value}
+                            placeholder="(left blank for you to fill)"
+                            onChange={(e) =>
+                              patchCover({ briefFields: c.briefFields.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </div>
-              <ToggleRow
-                id="pictures"
-                label="Picture column"
-                description="A box for each member's photo."
-                checked={c.showPictureColumn}
-                onChange={(v) => patchCover({ showPictureColumn: v })}
-              />
-            </div>
+
+                <div className="mt-6 grid gap-5 border-t pt-5 sm:grid-cols-2">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="rows">Group member rows</Label>
+                      <span className="font-mono text-sm tabular-nums" aria-live="polite">
+                        {c.memberRows}
+                      </span>
+                    </div>
+                    <Slider
+                      id="rows"
+                      min={1}
+                      max={8}
+                      step={1}
+                      value={[c.memberRows]}
+                      onValueChange={([v]) => patchCover({ memberRows: v ?? 1 })}
+                      thumbLabel="Group member rows"
+                    />
+                    {bc?.groupSize && (
+                      <p className="text-xs text-muted-foreground">
+                        The brief says groups of {bc.groupSize.min}
+                        {bc.groupSize.max !== bc.groupSize.min ? `–${bc.groupSize.max}` : ''}.
+                      </p>
+                    )}
+                  </div>
+                  <ToggleRow
+                    id="pictures"
+                    label="Picture column"
+                    description="A box for each member's photo."
+                    checked={c.showPictureColumn}
+                    onChange={(v) => patchCover({ showPictureColumn: v })}
+                  />
+                </div>
+              </>
+            )}
           </Section>
         </div>
       </div>

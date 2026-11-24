@@ -5,7 +5,8 @@ import { assignRubricStyles, mergeRubric, readThemeFonts, resolveThemeFonts, str
 import { openDocx, malformedParts, sampleConfig } from '../../test/docx';
 import { RUBRIC_A2, hasFixture, readFixture } from '../../test/fixtures';
 
-const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+const W =
+  'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
 const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]);
 
 /** A small rubric .docx with an image, a numbered list, a table and theme fonts. */
@@ -61,14 +62,22 @@ async function merged(rubric: Uint8Array) {
 
 describe('mergeRubric helpers', () => {
   it('strips paraId/textId/rsid attributes', () => {
-    expect(stripNoise('<w:p w14:paraId="1" w14:textId="2" w:rsidR="3" w:rsidRDefault="4"><w:r w:rsidRPr="5"/></w:p>')).toBe('<w:p><w:r/></w:p>');
+    expect(stripNoise('<w:p w14:paraId="1" w14:textId="2" w:rsidR="3" w:rsidRDefault="4"><w:r w:rsidRPr="5"/></w:p>')).toBe(
+      '<w:p><w:r/></w:p>',
+    );
   });
 
   it('resolves theme fonts to names, optionally keeping the theme attributes', () => {
-    const fonts = readThemeFonts('<a:majorFont><a:latin typeface="Georgia"/></a:majorFont><a:minorFont><a:latin typeface="Verdana"/></a:minorFont>');
+    const fonts = readThemeFonts(
+      '<a:majorFont><a:latin typeface="Georgia"/></a:majorFont><a:minorFont><a:latin typeface="Verdana"/></a:minorFont>',
+    );
     expect(fonts).toEqual({ minor: 'Verdana', major: 'Georgia' });
-    expect(resolveThemeFonts('<w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="majorHAnsi"/>', fonts)).toBe('<w:rFonts w:ascii="Verdana" w:hAnsi="Georgia"/>');
-    expect(resolveThemeFonts('<w:rFonts w:asciiTheme="minorHAnsi"/>', fonts, true)).toBe('<w:rFonts w:ascii="Verdana" w:asciiTheme="minorHAnsi"/>');
+    expect(resolveThemeFonts('<w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="majorHAnsi"/>', fonts)).toBe(
+      '<w:rFonts w:ascii="Verdana" w:hAnsi="Georgia"/>',
+    );
+    expect(resolveThemeFonts('<w:rFonts w:asciiTheme="minorHAnsi"/>', fonts, true)).toBe(
+      '<w:rFonts w:ascii="Verdana" w:asciiTheme="minorHAnsi"/>',
+    );
     expect(resolveThemeFonts('<w:rFonts w:ascii="Arial"/>', fonts)).toBe('<w:rFonts w:ascii="Arial"/>');
   });
 
@@ -120,7 +129,9 @@ describe('mergeRubric (synthetic rubric)', () => {
     const rels = await parts.text('word/_rels/document.xml.rels');
     const id = doc.match(/<a:blip r:embed="([^"]+)"/)![1]!;
     expect(id).toMatch(/^rIdRubric\d+$/);
-    expect(rels).toContain(`Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/rubric_image1.png"`);
+    expect(rels).toContain(
+      `Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/rubric_image1.png"`,
+    );
     expect(parts.names).toContain('word/media/rubric_image1.png');
     expect(await parts.text('[Content_Types].xml')).toMatch(/Extension="png"/);
   });

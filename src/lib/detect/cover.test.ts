@@ -68,3 +68,32 @@ describe.runIf(hasFixture(A2))('detectCover (A2.docx)', () => {
     expect(cover.groupType.value).toBe('group');
   });
 });
+
+describe('detectCover: other cover sheet styles', () => {
+  it('finds a declaration-style cover sheet without colon fields', async () => {
+    const { lines } = await import('../../test/lines');
+    const page1 = [
+      'FACULTY OF COMPUTING',
+      'ASSIGNMENT FRONT PAGE',
+      'Student Name',
+      'Matric No.',
+      'Programme',
+      'Lecturer',
+      'Submission Date',
+      'Declaration',
+      'I declare that this work is my own.',
+      'Signature',
+    ];
+    const page2 = [
+      'Part A – Introduction',
+      'Write an introduction of about 500 words describing the system and its users in detail please.',
+    ];
+    const all = lines(...page1.map((t) => `@1 ${t}`), ...page2.map((t) => `@2 ${t}`));
+    const c = detectCover(all, [
+      { page: 1, width: 595, height: 842, landscape: false },
+      { page: 2, width: 595, height: 842, landscape: false },
+    ]);
+    expect(c.briefHasCover).toBe(true);
+    expect(c.coverPages).toEqual([1]);
+  });
+});

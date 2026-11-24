@@ -14,7 +14,9 @@ test('a scanned PDF shows the friendly no-text error and offers paste instead', 
 
   // Recover by pasting the text.
   await alert.getByRole('button', { name: 'Paste text' }).click();
-  await page.getByRole('textbox', { name: 'Brief text' }).fill('ABC1234 SOFTWARE TESTING\nPart 1 – Test Plan\nTask 1.1 Scope\nPart 2 – Test Cases\nFont: Arial 12');
+  await page
+    .getByRole('textbox', { name: 'Brief text' })
+    .fill('ABC1234 SOFTWARE TESTING\nPart 1 – Test Plan\nTask 1.1 Scope\nPart 2 – Test Cases\nFont: Arial 12');
   await page.getByRole('button', { name: 'Use this text' }).click();
   await expect(page.getByText('Found 2 parts and 1 sub-task.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Next: structure' })).toBeEnabled();

@@ -1,6 +1,7 @@
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import type { Heading, TemplateConfig } from '@/lib/types';
+import type { CoverLayout, CoverTextLine, Heading, TemplateConfig } from '@/lib/types';
+import { coverMargins, layoutHeight } from '@/lib/generate/coverGeometry';
 import { effectiveHeadings } from '@/lib/generate/headings';
 import { estimateHeadingPages } from '@/lib/generate/toc';
 import { useBuilder, type FocusTarget, type RubricMeta } from '@/store/builder';
@@ -40,8 +41,112 @@ function PageNumber({ config, n, landscape }: { config: TemplateConfig; n: numbe
   );
 }
 
+function CoverLine({ line, k }: { line: CoverTextLine; k: (n: number) => number }) {
+  const runs = line.runs;
+  let tab = 0;
+  return (
+    <span
+      className="relative block whitespace-pre"
+      style={{ textAlign: line.align, paddingLeft: k(line.indent), fontSize: k(line.size), lineHeight: 1.15 }}
+    >
+      {runs.map((r, i) =>
+        r.tab ? (
+          <span key={i} className={cn('absolute', r.bold && 'font-bold')} style={{ left: k(line.tabs[tab++] ?? 0) }}>
+            {r.text}
+          </span>
+        ) : (
+          <span key={i} className={cn(r.bold && 'font-bold')}>
+            {r.text}
+          </span>
+        ),
+      )}
+    </span>
+  );
+}
+
+/** The brief's own cover sheet, drawn to scale over the whole page. */
+function CopiedCover({ config, layout }: { config: TemplateConfig; layout: CoverLayout }) {
+  const paper = config.format.paper === 'Letter' ? { w: 612, h: 792 } : { w: 595, h: 842 };
+  const m = coverMargins(config.cover);
+  const side = m.side / 20;
+  const top0 = m.top / 20;
+  const contentW = layout.right - layout.left;
+  const first = layout.blocks[0]?.top ?? 0;
+  const s = Math.min(
+    1,
+    (paper.w - 2 * side) / Math.max(1, contentW),
+    (paper.h - top0 - m.bottom / 20 - 15) / Math.max(1, layoutHeight(layout) + 20),
+  );
+  const k = (n: number) => pt(n * s);
+  const X = (x: number) => pt(side + (x - layout.left) * s);
+  const Y = (y: number) => pt(top0 + (y - first) * s);
+  return (
+    <div className="absolute inset-0 text-left text-paper-ink" data-testid="copied-cover">
+      {layout.blocks.map((b, i) => {
+        if (b.kind === 'text')
+          return (
+            <div key={i} className="absolute" style={{ top: Y(b.top), left: pt(side), width: k(contentW) }}>
+              <CoverLine line={b} k={k} />
+            </div>
+          );
+        if (b.kind === 'rule')
+          return (
+            <div
+              key={i}
+              className="absolute bg-paper-ink"
+              style={{ top: Y(b.top), left: X(b.x), width: k(b.width), height: Math.max(1, k(b.thickness)) }}
+            />
+          );
+        if (b.kind === 'image')
+          return (
+            <img
+              key={i}
+              src={b.dataUrl}
+              alt=""
+              className="absolute"
+              style={{ top: Y(b.top), left: X(b.x), width: k(b.width), height: k(b.bottom - b.top) }}
+            />
+          );
+        return (
+          <table
+            key={i}
+            className="absolute table-fixed border-collapse"
+            style={{ top: Y(b.top), left: X(b.x), width: k(b.colWidths.reduce((a, x) => a + x, 0)) }}
+          >
+            <colgroup>
+              {b.colWidths.map((w, j) => (
+                <col key={j} style={{ width: k(w) }} />
+              ))}
+            </colgroup>
+            <tbody>
+              {b.rows.map((row, r) => (
+                <tr key={r} style={{ height: k(row.height) }}>
+                  {row.cells.map((cell, j) => (
+                    <td
+                      key={j}
+                      colSpan={cell.colSpan}
+                      rowSpan={cell.rowSpan}
+                      className="border border-paper-ink/70 align-middle"
+                      style={{ padding: `0 ${k(5)}px` }}
+                    >
+                      {cell.lines.map((ln, li) => (
+                        <CoverLine key={li} line={ln} k={k} />
+                      ))}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+      })}
+    </div>
+  );
+}
+
 function Cover({ config }: { config: TemplateConfig }) {
   const c = config.cover;
+  if (c.mode === 'from-brief' && c.briefLayout?.blocks.length) return <CopiedCover config={config} layout={c.briefLayout} />;
   const fs = config.format.fontSizePt;
   const rows = Math.max(1, Math.min(8, c.memberRows));
   const rowH = Math.max(pt(30), Math.min(pt(c.showPictureColumn ? 85 : 25), pt(300 / rows)));
@@ -59,15 +164,27 @@ function Cover({ config }: { config: TemplateConfig }) {
           <p className="font-bold" style={{ fontSize: pt(fs + 4) }}>
             {c.subjectName}
           </p>
-          {c.subjectCode && <p className="font-bold" style={{ fontSize: pt(fs) }}>({c.subjectCode})</p>}
+          {c.subjectCode && (
+            <p className="font-bold" style={{ fontSize: pt(fs) }}>
+              ({c.subjectCode})
+            </p>
+          )}
         </>
       ) : (
         <p className="font-bold" style={{ fontSize: pt(fs + 4) }}>
           {[c.subjectCode, c.subjectName].filter(Boolean).join(' ')}
         </p>
       )}
-      {c.assignmentName && <p className="font-bold" style={{ fontSize: pt(fs) }}>{c.assignmentName}</p>}
-      {c.assignmentTitle && <p className="italic" style={{ fontSize: pt(fs) }}>{c.assignmentTitle}</p>}
+      {c.assignmentName && (
+        <p className="font-bold" style={{ fontSize: pt(fs) }}>
+          {c.assignmentName}
+        </p>
+      )}
+      {c.assignmentTitle && (
+        <p className="italic" style={{ fontSize: pt(fs) }}>
+          {c.assignmentTitle}
+        </p>
+      )}
       {c.mode === 'from-brief' && c.briefFields.length > 0 ? (
         <table className="mt-1 w-full border-collapse text-left" style={{ fontSize: pt(fs - 1) }}>
           <tbody>
@@ -89,7 +206,11 @@ function Cover({ config }: { config: TemplateConfig }) {
       <table className="mt-auto w-full table-fixed border-collapse" style={{ fontSize: pt(fs - 1) }}>
         <thead>
           <tr className="bg-black/5 font-bold">
-            {c.showPictureColumn && <td className="w-1/5 border border-paper-ink/60" style={{ padding: pt(2) }}>Picture</td>}
+            {c.showPictureColumn && (
+              <td className="w-1/5 border border-paper-ink/60" style={{ padding: pt(2) }}>
+                Picture
+              </td>
+            )}
             <td className="border border-paper-ink/60" style={{ padding: pt(2) }}>
               Name
             </td>
@@ -122,7 +243,11 @@ function Toc({ config }: { config: TemplateConfig }) {
       </p>
       <ul style={{ fontSize: pt(fs) }}>
         {entries.slice(0, 26).map((e, i) => (
-          <li key={i} className="flex items-baseline" style={{ paddingLeft: e.level === 2 ? pt(12) : 0, marginBottom: pt(fs * (config.format.lineSpacing - 0.6)) }}>
+          <li
+            key={i}
+            className="flex items-baseline"
+            style={{ paddingLeft: e.level === 2 ? pt(12) : 0, marginBottom: pt(fs * (config.format.lineSpacing - 0.6)) }}
+          >
             <span className="truncate">{e.text}</span>
             <span className="mx-[2px] flex-1 border-b border-dotted border-paper-ink/50" />
             <span>{e.page}</span>
@@ -175,7 +300,11 @@ function RubricThumb({ config, rubricFile }: { config: TemplateConfig; rubricFil
             {rows.slice(0, 7).map((row, i) => (
               <tr key={i} className={cn(i === 0 && 'bg-black/5 font-bold')}>
                 {Array.from({ length: cols }).map((_, j) => (
-                  <td key={j} className="border border-paper-ink/50 align-top" style={{ padding: pt(2, L), height: pt(i === 0 ? 14 : 34, L) }}>
+                  <td
+                    key={j}
+                    className="border border-paper-ink/50 align-top"
+                    style={{ padding: pt(2, L), height: pt(i === 0 ? 14 : 34, L) }}
+                  >
                     <span className="line-clamp-3">{row[j]}</span>
                   </td>
                 ))}
@@ -184,7 +313,9 @@ function RubricThumb({ config, rubricFile }: { config: TemplateConfig; rubricFil
           </tbody>
         </table>
       ) : (
-        <div className="grid h-24 place-items-center border border-dashed border-paper-rule text-paper-ink/50">{rubricFile?.name ?? 'Rubric'}</div>
+        <div className="grid h-24 place-items-center border border-dashed border-paper-rule text-paper-ink/50">
+          {rubricFile?.name ?? 'Rubric'}
+        </div>
       )}
     </div>
   );
@@ -211,7 +342,9 @@ export function usePages(): PageSpec[] {
       else groups[groups.length - 1]!.push(h);
     }
     // Without one-part-per-page, the body flows: split long runs so thumbnails stay readable.
-    const flowed = config.onePartPerPage ? groups : groups.flatMap((g) => Array.from({ length: Math.ceil(g.length / 8) }, (_, i) => g.slice(i * 8, i * 8 + 8)));
+    const flowed = config.onePartPerPage
+      ? groups
+      : groups.flatMap((g) => Array.from({ length: Math.ceil(g.length / 8) }, (_, i) => g.slice(i * 8, i * 8 + 8)));
     flowed.forEach((g, i) => {
       const first = g[0]!;
       pages.push({
@@ -255,7 +388,14 @@ export function LivePreview({ className, onNavigate }: { className?: string; onN
       {pages.map((p, i) => {
         const w = p.landscape ? PAGE_W * (297 / 210) : PAGE_W;
         return (
-          <motion.figure key={p.key} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="m-0">
+          <motion.figure
+            key={p.key}
+            layout
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="m-0"
+          >
             <button
               type="button"
               onClick={() => {

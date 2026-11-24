@@ -16,7 +16,9 @@ import {
 } from 'docx';
 import type { CoverPage, PaperSize } from '../types';
 import { STYLE_IDS } from './styles';
-import { MARGIN, PAPER, splitWidth } from './units';
+import { PAPER, splitWidth } from './units';
+import { layoutContent } from './coverLayout';
+import { coverMargins, type CoverMargins } from './coverGeometry';
 
 const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' } as const;
 const none = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } as const;
@@ -201,12 +203,22 @@ function coverContent(cover: CoverPage, width: number, available: number): (Para
  * The cover section's children. With a colour, the cover is one full-bleed shaded table cell
  * (the section has zero margins) so only the cover page is coloured.
  */
-export function buildCover(cover: CoverPage, paper: PaperSize, colourHex?: string): { children: (Paragraph | Table)[]; fullBleed: boolean } {
+function content(cover: CoverPage, width: number, available: number): (Paragraph | Table)[] {
+  if (cover.mode === 'from-brief' && cover.briefLayout?.blocks.length) return layoutContent(cover.briefLayout, width, available);
+  return coverContent(cover, width, available);
+}
+
+export function buildCover(
+  cover: CoverPage,
+  paper: PaperSize,
+  colourHex?: string,
+): { children: (Paragraph | Table)[]; fullBleed: boolean; margins: CoverMargins } {
   const page = PAPER[paper];
+  const m = coverMargins(cover);
   if (!colourHex || colourHex.toUpperCase() === 'FFFFFF') {
-    return { children: coverContent(cover, page.width - 2 * MARGIN, page.height - 2 * MARGIN - 300), fullBleed: false };
+    return { children: content(cover, page.width - 2 * m.side, page.height - m.top - m.bottom - 300), fullBleed: false, margins: m };
   }
-  const inner = page.width - 2 * MARGIN;
+  const inner = page.width - 2 * m.side;
   const table = new Table({
     width: { size: page.width, type: WidthType.DXA },
     columnWidths: [page.width],
@@ -223,8 +235,8 @@ export function buildCover(cover: CoverPage, paper: PaperSize, colourHex?: strin
             borders: NONE,
             shading: { type: ShadingType.CLEAR, color: 'auto', fill: colourHex.toUpperCase() },
             // Word adds vertical cell margins on top of an exact row height, so pad the top with a spacer instead.
-            margins: { top: 0, bottom: 0, left: MARGIN, right: MARGIN },
-            children: [spacer(MARGIN), ...coverContent(cover, inner, page.height - 200 - 2 * MARGIN)],
+            margins: { top: 0, bottom: 0, left: m.side, right: m.side },
+            children: [spacer(m.top), ...content(cover, inner, page.height - 200 - m.top - m.bottom)],
           }),
         ],
       }),
@@ -241,5 +253,6 @@ export function buildCover(cover: CoverPage, paper: PaperSize, colourHex?: strin
       }),
     ],
     fullBleed: true,
+    margins: m,
   };
 }

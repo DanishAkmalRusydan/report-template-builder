@@ -45,8 +45,12 @@ describe('buildTemplate', () => {
 
   it('pre-fills the TOC with every heading and an estimated page number', async () => {
     const { doc, styles } = await build();
-    expect(doc).toContain('<w:pStyle w:val="TOC1"/></w:pPr><w:r><w:t xml:space="preserve">Part A: Introduction</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>3</w:t>');
-    expect(doc).toContain('<w:pStyle w:val="TOC2"/></w:pPr><w:r><w:t xml:space="preserve">Task A1: Background</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>3</w:t>');
+    expect(doc).toContain(
+      '<w:pStyle w:val="TOC1"/></w:pPr><w:r><w:t xml:space="preserve">Part A: Introduction</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>3</w:t>',
+    );
+    expect(doc).toContain(
+      '<w:pStyle w:val="TOC2"/></w:pPr><w:r><w:t xml:space="preserve">Task A1: Background</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>3</w:t>',
+    );
     expect(styles).toMatch(/w:styleId="TOC1"[\s\S]*?w:leader="dot"/);
   });
 
@@ -57,7 +61,9 @@ describe('buildTemplate', () => {
     expect(h1).toContain('<w:b/>');
     expect(h1).toContain('w:ascii="Arial"');
     expect(h1).toContain('<w:sz w:val="26"/>');
-    expect(styles).toMatch(/<w:docDefaults>[\s\S]*w:ascii="Arial"[\s\S]*<w:sz w:val="22"\/>[\s\S]*w:line="360"[\s\S]*<w:jc w:val="both"\/>/);
+    expect(styles).toMatch(
+      /<w:docDefaults>[\s\S]*w:ascii="Arial"[\s\S]*<w:sz w:val="22"\/>[\s\S]*w:line="360"[\s\S]*<w:jc w:val="both"\/>/,
+    );
   });
 
   it('starts each H1 on a new page, and only the first when "one part per page" is off', async () => {
@@ -125,7 +131,8 @@ describe('buildTemplate', () => {
 
   it('builds the member table with the chosen rows and optional picture column', async () => {
     const three = await build({ cover: { ...sampleConfig().cover, memberRows: 3 } });
-    const memberTable = (d: string) => d.slice(d.lastIndexOf('<w:tbl>', d.indexOf('>Student ID<')), d.indexOf('</w:tbl>', d.indexOf('>Student ID<')));
+    const memberTable = (d: string) =>
+      d.slice(d.lastIndexOf('<w:tbl>', d.indexOf('>Student ID<')), d.indexOf('</w:tbl>', d.indexOf('>Student ID<')));
     expect(memberTable(three.doc).match(/<w:tr>/g)).toHaveLength(4); // header + 3
     expect(memberTable(three.doc)).toContain('>Picture<');
     const noPic = await build({ cover: { ...sampleConfig().cover, showPictureColumn: false } });
@@ -134,7 +141,14 @@ describe('buildTemplate', () => {
 
   it('rebuilds a brief cover from its fields', async () => {
     const { doc } = await build({
-      cover: { ...sampleConfig().cover, mode: 'from-brief', briefFields: [{ label: 'Lecturer’s Name', value: 'DR. X' }, { label: 'Semester', value: 'SEPT 2026' }] },
+      cover: {
+        ...sampleConfig().cover,
+        mode: 'from-brief',
+        briefFields: [
+          { label: 'Lecturer’s Name', value: 'DR. X' },
+          { label: 'Semester', value: 'SEPT 2026' },
+        ],
+      },
     });
     expect(doc).toContain('>Lecturer’s Name<');
     expect(doc).toContain('>DR. X<');
@@ -143,7 +157,17 @@ describe('buildTemplate', () => {
 
   it('adds a landscape rubric section rebuilt from PDF rows', async () => {
     const { doc } = await build({
-      rubric: { kind: 'pdf-pages', pages: [8, 9], landscape: true, before: ['RUBRIC for (LAB 2)'], rows: [['Criteria', 'Excellent (4)'], ['Design', 'Complete']], after: ['OVERALL SCORE'] },
+      rubric: {
+        kind: 'pdf-pages',
+        pages: [8, 9],
+        landscape: true,
+        before: ['RUBRIC for (LAB 2)'],
+        rows: [
+          ['Criteria', 'Excellent (4)'],
+          ['Design', 'Complete'],
+        ],
+        after: ['OVERALL SCORE'],
+      },
     });
     const s = sections(doc);
     expect(s).toHaveLength(3);
@@ -180,5 +204,86 @@ describe('templateFileName', () => {
     ['BIT2234', 'Group Assignment 1: Campus Library Booking System', 'BIT2234_Assignment_1_Report_Template.docx'],
   ])('%s + %s → %s', (code, name, expected) => {
     expect(templateFileName(sampleConfig({ cover: { ...sampleConfig().cover, subjectCode: code, assignmentName: name } }))).toBe(expected);
+  });
+});
+
+describe('copied cover sheet', () => {
+  it('renders the brief’s cover layout instead of a generated cover', async () => {
+    // 1x1 white PNG.
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+    const { doc, parts } = await build({
+      cover: {
+        ...sampleConfig().cover,
+        mode: 'from-brief',
+        briefLayout: {
+          page: 10,
+          pageWidth: 612,
+          pageHeight: 792,
+          left: 36,
+          right: 576,
+          blocks: [
+            { kind: 'image', top: 70, bottom: 130, x: 223, width: 165, dataUrl: png, align: 'center' },
+            {
+              kind: 'text',
+              top: 150,
+              bottom: 165,
+              runs: [{ text: 'ASSIGNMENT (Lab 2)', bold: true }],
+              size: 12,
+              align: 'center',
+              indent: 0,
+              tabs: [],
+            },
+            { kind: 'rule', top: 200, bottom: 201, x: 36, width: 540, thickness: 1.4 },
+            {
+              kind: 'text',
+              top: 215,
+              bottom: 230,
+              runs: [
+                { text: 'Lecturer’s Name', bold: true },
+                { text: ': DR. X', bold: true, tab: true },
+              ],
+              size: 12,
+              align: 'left',
+              indent: 0,
+              tabs: [110],
+            },
+            {
+              kind: 'table',
+              top: 300,
+              bottom: 360,
+              x: 36,
+              colWidths: [360, 180],
+              rows: [
+                {
+                  height: 30,
+                  cells: [
+                    {
+                      col: 0,
+                      colSpan: 2,
+                      rowSpan: 1,
+                      lines: [{ runs: [{ text: 'MARKS', bold: true }], size: 12, align: 'center', indent: 0, tabs: [] }],
+                    },
+                  ],
+                },
+                {
+                  height: 30,
+                  cells: [
+                    { col: 0, colSpan: 1, rowSpan: 1, lines: [] },
+                    { col: 1, colSpan: 1, rowSpan: 1, lines: [] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    const cover = doc.slice(0, doc.indexOf('<w:sectPr'));
+    expect(cover).toContain('ASSIGNMENT (Lab 2)');
+    expect(cover).toContain('<w:tab/>');
+    expect(cover).toContain('<w:gridSpan w:val="2"/>');
+    expect(cover).toMatch(/<w:pBdr>\s*<w:bottom/);
+    expect(cover).not.toContain('Picture'); // no generated member table
+    expect(parts.names.some((n) => /^word\/media\/.+\.png$/.test(n))).toBe(true);
   });
 });

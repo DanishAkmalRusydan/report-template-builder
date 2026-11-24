@@ -14,7 +14,14 @@ const frag = (str: string, x: number, width: number, extra: Partial<PdfFragment>
 describe('joinFragments', () => {
   it('joins touching fragments without a space and gapped ones with a space', () => {
     // Real Lab 2 layout: "T" | "ask B1:" | "Doma" | "in" | "Vocab" | "ulary Development"
-    const line = [frag('T', 72, 7), frag('ask B1:', 79, 43), frag('Doma', 125, 33), frag('in', 158, 11), frag('Vocab', 172, 35), frag('ulary Development', 207, 107)];
+    const line = [
+      frag('T', 72, 7),
+      frag('ask B1:', 79, 43),
+      frag('Doma', 125, 33),
+      frag('in', 158, 11),
+      frag('Vocab', 172, 35),
+      frag('ulary Development', 207, 107),
+    ];
     expect(joinFragments(line)).toBe('Task B1: Domain Vocabulary Development');
   });
 

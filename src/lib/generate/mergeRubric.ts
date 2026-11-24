@@ -29,7 +29,9 @@ const CONTENT_TYPES: Record<string, string> = {
 const TABLE_GRID =
   '<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:uiPriority w:val="39"/>' +
   '<w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:tblPr><w:tblBorders>' +
-  ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((s) => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="auto"/>`).join('') +
+  ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+    .map((s) => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="auto"/>`)
+    .join('') +
   '</w:tblBorders></w:tblPr></w:style>';
 
 /** Remove revision-tracking ids and other noise Word adds. */
@@ -80,7 +82,10 @@ export function resolveThemeFonts(xml: string, fonts: ThemeFonts, keepTheme = fo
     }
     if (!keepTheme) for (const k of [...vals.keys()]) if (/theme$/i.test(k)) vals.delete(k);
     const order = ['ascii', 'eastAsia', 'hAnsi', 'cs', 'hint', 'asciiTheme', 'eastAsiaTheme', 'hAnsiTheme', 'cstheme'];
-    const out = [...vals.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])).map(([k, v]) => ` w:${k}="${v}"`).join('');
+    const out = [...vals.entries()]
+      .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
+      .map(([k, v]) => ` w:${k}="${v}"`)
+      .join('');
     return `<w:rFonts${out}/>`;
   });
 }
@@ -124,7 +129,8 @@ export function rubricStyles(rubricStylesXml: string, fonts: ThemeFonts): string
   const gridP = grid ? inner(grid, 'w:pPr') : undefined;
 
   let rPr = mergeProps(RPR_ORDER, defR, normalR);
-  if (!/<w:rFonts/.test(rPr)) rPr = mergeProps(RPR_ORDER, rPr, `<w:rFonts w:ascii="${fonts.minor}" w:hAnsi="${fonts.minor}" w:cs="${fonts.minor}"/>`);
+  if (!/<w:rFonts/.test(rPr))
+    rPr = mergeProps(RPR_ORDER, rPr, `<w:rFonts w:ascii="${fonts.minor}" w:hAnsi="${fonts.minor}" w:cs="${fonts.minor}"/>`);
   if (!/<w:sz\b/.test(rPr)) rPr = mergeProps(RPR_ORDER, rPr, '<w:sz w:val="22"/><w:szCs w:val="22"/>');
   rPr = mergeProps(RPR_ORDER, rPr, /<w:color\b/.test(rPr) ? '' : '<w:color w:val="000000"/>');
   rPr = resolveThemeFonts(rPr, fonts);
@@ -142,25 +148,28 @@ export function rubricStyles(rubricStylesXml: string, fonts: ThemeFonts): string
  */
 export function assignRubricStyles(content: string, defaultStyleIds: string[] = ['Normal']): string {
   let depth = 0;
-  return content.replace(/<w:tbl>|<\/w:tbl>|<w:p(?:\s[^>]*)?\/>|<w:p(?:\s[^>]*)?>(?:<w:pPr>((?:(?!<\/w:pPr>)[\s\S])*)<\/w:pPr>)?/g, (m, pPr: string | undefined) => {
-    if (m === '<w:tbl>') {
-      depth++;
-      return m;
-    }
-    if (m === '</w:tbl>') {
-      depth--;
-      return m;
-    }
-    const id = depth > 0 ? RUBRIC_STYLES.cell : RUBRIC_STYLES.body;
-    const styleEl = `<w:pStyle w:val="${id}"/>`;
-    if (m.endsWith('/>') && !m.includes('<w:pPr>')) return `${m.slice(0, -2)}><w:pPr>${styleEl}</w:pPr></w:p>`;
-    const open = m.match(/^<w:p(?:\s[^>]*)?>/)![0];
-    if (pPr === undefined) return `${open}<w:pPr>${styleEl}</w:pPr>`;
-    const existing = pPr.match(/^<w:pStyle w:val="([^"]+)"\/>/)?.[1];
-    if (existing && !defaultStyleIds.includes(existing)) return m;
-    const rest = existing ? pPr.replace(/^<w:pStyle w:val="[^"]+"\/>/, '') : pPr;
-    return `${open}<w:pPr>${styleEl}${rest}</w:pPr>`;
-  });
+  return content.replace(
+    /<w:tbl>|<\/w:tbl>|<w:p(?:\s[^>]*)?\/>|<w:p(?:\s[^>]*)?>(?:<w:pPr>((?:(?!<\/w:pPr>)[\s\S])*)<\/w:pPr>)?/g,
+    (m, pPr: string | undefined) => {
+      if (m === '<w:tbl>') {
+        depth++;
+        return m;
+      }
+      if (m === '</w:tbl>') {
+        depth--;
+        return m;
+      }
+      const id = depth > 0 ? RUBRIC_STYLES.cell : RUBRIC_STYLES.body;
+      const styleEl = `<w:pStyle w:val="${id}"/>`;
+      if (m.endsWith('/>') && !m.includes('<w:pPr>')) return `${m.slice(0, -2)}><w:pPr>${styleEl}</w:pPr></w:p>`;
+      const open = m.match(/^<w:p(?:\s[^>]*)?>/)![0];
+      if (pPr === undefined) return `${open}<w:pPr>${styleEl}</w:pPr>`;
+      const existing = pPr.match(/^<w:pStyle w:val="([^"]+)"\/>/)?.[1];
+      if (existing && !defaultStyleIds.includes(existing)) return m;
+      const rest = existing ? pPr.replace(/^<w:pStyle w:val="[^"]+"\/>/, '') : pPr;
+      return `${open}<w:pPr>${styleEl}${rest}</w:pPr>`;
+    },
+  );
 }
 
 function parseRels(xml: string | undefined): Map<string, { type: string; target: string; external: boolean }> {
@@ -199,7 +208,10 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
       '</Relationships>',
       '<Relationship Id="rIdRubricTheme" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/></Relationships>',
     );
-    ct = ct.replace('</Types>', '<Override PartName="/word/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/></Types>');
+    ct = ct.replace(
+      '</Types>',
+      '<Override PartName="/word/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/></Types>',
+    );
     fonts.keepTheme = true;
   }
   const rStyles = getText(rubric, 'word/styles.xml') ?? '';
@@ -210,7 +222,8 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
   let content = finalSect ? body.slice(0, body.length - finalSect.length) : body;
   content = stripNoise(content).replace(/<w:(?:header|footer)Reference\b[^>]*\/>/g, '');
   content = resolveThemeFonts(content, fonts);
-  const rubricDefaultStyle = [...stylesById(rStyles).entries()].find(([, s]) => /w:type="paragraph"/.test(s) && /w:default="1"/.test(s))?.[0] ?? 'Normal';
+  const rubricDefaultStyle =
+    [...stylesById(rStyles).entries()].find(([, s]) => /w:type="paragraph"/.test(s) && /w:default="1"/.test(s))?.[0] ?? 'Normal';
   content = assignRubricStyles(content, [...new Set(['Normal', rubricDefaultStyle])]);
 
   // 2. Relationships (images, hyperlinks, embedded parts): copy with new ids.
@@ -239,7 +252,9 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
         files.set(`word/${target}`, data);
         const ext = base.split('.').pop() ?? '';
         ct = addDefaultContentType(ct, ext);
-        const override = getText(rubric, '[Content_Types].xml')?.match(new RegExp(`<Override PartName="/${srcPath.replace(/[.]/g, '\\.')}" ContentType="([^"]+)"/>`))?.[1];
+        const override = getText(rubric, '[Content_Types].xml')?.match(
+          new RegExp(`<Override PartName="/${srcPath.replace(/[.]/g, '\\.')}" ContentType="([^"]+)"/>`),
+        )?.[1];
         if (override) ct = ct.replace('</Types>', `<Override PartName="/word/${target}" ContentType="${override}"/></Types>`);
       }
     }
@@ -248,7 +263,9 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
       `<Relationship Id="${newId}" Type="${rel.type}" Target="${target}"${rel.external ? ' TargetMode="External"' : ''}/></Relationships>`,
     );
   }
-  content = content.replace(/(\sr:(?:embed|id|link|pict|dm|lo|qs|cs)=")([^"]+)"/g, (all, pre: string, id: string) => (idMap.has(id) ? `${pre}${idMap.get(id)}"` : all));
+  content = content.replace(/(\sr:(?:embed|id|link|pict|dm|lo|qs|cs)=")([^"]+)"/g, (all, pre: string, id: string) =>
+    idMap.has(id) ? `${pre}${idMap.get(id)}"` : all,
+  );
 
   // 3. Numbering: copy referenced definitions with offset ids.
   const numIds = new Set([...content.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => Number(m[1])).filter((x) => x > 0));
@@ -257,9 +274,16 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
     const OFFSET = 1000;
     let numbering = getText(files, 'word/numbering.xml');
     if (!numbering) {
-      numbering = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:numbering>';
-      rels = rels.replace('</Relationships>', '<Relationship Id="rIdRubricNumbering" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/></Relationships>');
-      ct = ct.replace('</Types>', '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>');
+      numbering =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:numbering>';
+      rels = rels.replace(
+        '</Relationships>',
+        '<Relationship Id="rIdRubricNumbering" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/></Relationships>',
+      );
+      ct = ct.replace(
+        '</Types>',
+        '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>',
+      );
     }
     const nums: string[] = [];
     const absIds = new Set<number>();
@@ -278,7 +302,9 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
     for (const m of rNumbering.matchAll(/<w:abstractNum\b[^>]*w:abstractNumId="(\d+)"[^>]*>[\s\S]*?<\/w:abstractNum>/g)) {
       const id = Number(m[1]);
       if (!absIds.has(id)) continue;
-      abstracts.push(resolveThemeFonts(stripExtNs(stripNoise(m[0])), fonts).replace(/w:abstractNumId="\d+"/, `w:abstractNumId="${id + OFFSET}"`));
+      abstracts.push(
+        resolveThemeFonts(stripExtNs(stripNoise(m[0])), fonts).replace(/w:abstractNumId="\d+"/, `w:abstractNumId="${id + OFFSET}"`),
+      );
     }
     const firstNum = numbering.search(/<w:num\s/);
     numbering =
@@ -287,7 +313,9 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
         : numbering.replace('</w:numbering>', abstracts.join('') + '</w:numbering>');
     numbering = numbering.replace('</w:numbering>', nums.join('') + '</w:numbering>');
     files.set('word/numbering.xml', numbering);
-    content = content.replace(/<w:numId w:val="(\d+)"\/>/g, (all, v: string) => (Number(v) > 0 ? `<w:numId w:val="${Number(v) + OFFSET}"/>` : all));
+    content = content.replace(/<w:numId w:val="(\d+)"\/>/g, (all, v: string) =>
+      Number(v) > 0 ? `<w:numId w:val="${Number(v) + OFFSET}"/>` : all,
+    );
   }
 
   // 4. Styles: Rubric Body / Rubric Cell, plus any style the rubric uses that the template lacks.
@@ -360,7 +388,12 @@ export function mergeRubricFiles(files: Files, rubric: Files): void {
     if (!new RegExp(`\\sxmlns:${m[1]}=`).test(root)) root = root.replace(/>$/, ` xmlns:${m[1]}="${m[2]}">`);
   }
   const declared = new Set([...root.matchAll(/\sxmlns:(\w+)=/g)].map((m) => m[1]!));
-  const ignorable = new Set([...(attr(root, 'w:document', 'mc:Ignorable') ?? '').split(/\s+/), ...(attr(rRoot, 'w:document', 'mc:Ignorable') ?? '').split(/\s+/)].filter((p) => p && declared.has(p)));
+  const ignorable = new Set(
+    [
+      ...(attr(root, 'w:document', 'mc:Ignorable') ?? '').split(/\s+/),
+      ...(attr(rRoot, 'w:document', 'mc:Ignorable') ?? '').split(/\s+/),
+    ].filter((p) => p && declared.has(p)),
+  );
   root = /\smc:Ignorable="/.test(root) ? root.replace(/\smc:Ignorable="[^"]*"/, ` mc:Ignorable="${[...ignorable].join(' ')}"`) : root;
   doc = doc.replace(newRoot, root);
 

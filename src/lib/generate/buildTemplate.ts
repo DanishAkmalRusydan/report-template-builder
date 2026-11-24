@@ -26,8 +26,7 @@ import { RUBRIC_PLACEHOLDER, TOC_TITLE } from './constants';
 export { RUBRIC_PLACEHOLDER, TOC_TITLE };
 
 function pageNumberParagraph(pos: PageNumberPosition): Paragraph {
-  const alignment =
-    pos === 'bottom-center' ? AlignmentType.CENTER : pos === 'bottom-left' ? AlignmentType.LEFT : AlignmentType.RIGHT;
+  const alignment = pos === 'bottom-center' ? AlignmentType.CENTER : pos === 'bottom-left' ? AlignmentType.LEFT : AlignmentType.RIGHT;
   return new Paragraph({ alignment, children: [new TextRun({ children: [PageNumber.CURRENT] })] });
 }
 
@@ -58,7 +57,10 @@ function bodyHeadings(config: TemplateConfig): Paragraph[] {
 }
 
 const tinyParagraph = () =>
-  new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: '', size: 2 })] });
+  new Paragraph({
+    spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT },
+    children: [new TextRun({ text: '', size: 2 })],
+  });
 
 /** Build the .docx document model. */
 export function buildDocument(config: TemplateConfig): Document {
@@ -72,7 +74,12 @@ export function buildDocument(config: TemplateConfig): Document {
     {
       properties: {
         titlePage: true,
-        page: { size, margin: cover.fullBleed ? { top: 0, right: 0, bottom: 0, left: 0, header: 0, footer: 0, gutter: 0 } : margin },
+        page: {
+          size,
+          margin: cover.fullBleed
+            ? { top: 0, right: 0, bottom: 0, left: 0, header: 0, footer: 0, gutter: 0 }
+            : { ...margin, top: cover.margins.top, bottom: cover.margins.bottom, left: cover.margins.side, right: cover.margins.side },
+        },
       },
       // 1pt-high header/footer paragraphs so they don't push a full-bleed cover onto a second page.
       headers: { default: new Header({ children: [tinyParagraph()] }), first: new Header({ children: [tinyParagraph()] }) },
